@@ -1,5 +1,5 @@
-const https = require('https');
-const fs = require('fs').promises;
+import https from 'https';
+import { promises as fs } from 'fs';
 
 const AGENCY = 'TCKTLSS_OP_GUERNSEY';
 const API_BASE = 'ticketless-app.api.urbanthings.cloud';
@@ -7,7 +7,7 @@ const API_HEADERS = {
     'x-ut-app': 'travel.ticketless.app.guernsey;platform=web',
     'x-api-key': 'TIzVfvPTlb5bjo69rsOPbabDVhwwgSiLaV5MCiME',
     'Accept': 'application/vnd.ticketless.arrivalsList+json; version=3',
-    'Referer': 'https://buses.gg/',
+    'Referer': 'https:'
 };
 
 const DIRECTIONS = ['Outbound', 'Inbound'];
@@ -54,6 +54,8 @@ async function fetchRoutes() {
         lineName: r.lineName,
         description: r.routeDescription,
         color: r.lineColor,
+        centrePointLat: r.centrePointLat?.parsedValue,
+        centrePointLng: r.centrePointLng?.parsedValue,
     }));
 }
 
@@ -65,7 +67,7 @@ async function fetchCalendars(routeId, direction) {
 
 function normaliseCalendar(cal, direction) {
     const stopMap = Object.fromEntries(cal.stops.map(s => [s.stopId, s.name]));
-
+    const stopLocationMap = Object.fromEntries(cal.stops.map(s => [s.stopId, s.location]));
     const serviceDays = {
         monday: cal.runsMonday,
         tuesday: cal.runsTuesday,
@@ -75,7 +77,6 @@ function normaliseCalendar(cal, direction) {
         saturday: cal.runsSaturday,
         sunday: cal.runsSunday,
     };
-
     const trips = cal.trips.map(trip => ({
         headsign: trip.headsign,
         stopTimes: trip.stopCalls.map(sc => ({
@@ -85,7 +86,6 @@ function normaliseCalendar(cal, direction) {
             departure: formatTime(sc.departureTime),
         })),
     }));
-
     return {
         direction,
         validFrom: cal.applicableFrom.slice(0, 10),
@@ -93,14 +93,18 @@ function normaliseCalendar(cal, direction) {
         serviceDays,
         additionalDates: cal.additionalRunningDates.map(d => d.slice(0, 10)),
         excludedDates: cal.excludedRunningDates.map(d => d.slice(0, 10)),
-        stops: cal.stops.map(s => ({ id: s.stopId, name: s.name })),
+        stops: cal.stops.map(s => ({
+            id: s.stopId,
+            name: s.name,
+            lat: s.location?.latitude,
+            lng: s.location?.longitude
+        })),
         trips,
     };
 }
 
 async function scrapeRoute(route) {
     const calendars = [];
-
     for (const direction of DIRECTIONS) {
         try {
             const raw = await fetchCalendars(route.routeId, direction);
@@ -112,12 +116,13 @@ async function scrapeRoute(route) {
         }
         await sleep(200);
     }
-
     return {
         routeId: route.routeId,
         lineName: route.lineName,
         description: route.description,
         color: route.color,
+        centrePointLat: route.centrePointLat,
+        centrePointLng: route.centrePointLng,
         scrapedAt: new Date().toISOString(),
         calendars,
     };
@@ -125,16 +130,12 @@ async function scrapeRoute(route) {
 
 async function scrape(options = {}) {
     const { outputFile = 'timetables.json', routes: routeFilter = null, verbose = true } = options;
-
     if (verbose) console.log('Fetching route list...');
     const allRoutes = await fetchRoutes();
-
     const routes = routeFilter
         ? allRoutes.filter(r => routeFilter.includes(r.lineName))
         : allRoutes;
-
     if (verbose) console.log(`Scraping ${routes.length} routes...\n`);
-
     const results = [];
     for (const route of routes) {
         if (verbose) process.stdout.write(`  Route ${route.lineName.padEnd(5)} ${route.description}...`);
@@ -149,21 +150,19 @@ async function scrape(options = {}) {
         }
         await sleep(300);
     }
-
     const output = {
         scrapedAt: new Date().toISOString(),
         agency: AGENCY,
         totalRoutes: results.length,
         routes: results,
     };
-
     await fs.writeFile(outputFile, JSON.stringify(output, null, 2));
     if (verbose) console.log(`\nSaved to ${outputFile}`);
-
     return output;
 }
 
-if (require.main === module) {
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
     const args = process.argv.slice(2);
     const routeFilter = args.length ? args : null;
     scrape({ routes: routeFilter }).catch(err => {
@@ -172,4 +171,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { scrape, fetchRoutes, fetchCalendars };
+export { scrape, fetchRoutes, fetchCalendars };
