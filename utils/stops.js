@@ -25,36 +25,76 @@ export function fuzzyMatchStops(query, names) {
 
 export function extractStops(text) {
   const lower = text.toLowerCase();
-  const isAirport = /\b(airport|flight|fly|plane)\b/i.test(text);
+  const airportMatch = text.match(/\b(airport)\b/i);
+  const isAirport = !!airportMatch;
+  const airportIndex = airportMatch ? airportMatch.index : -1;
+  
   let originCandidates = [];
   let destCandidates = [];
-
+  let isAirportDestination = false;
+  
   const fromMatch = text.match(/\bfrom\s+([A-Za-z0-9''\s]+?)(?:\s+(?:for|at|to|by|before|on)\b|$)/i);
   const toMatch = text.match(/\bto\s+(?:the\s+)?([A-Za-z0-9''\s]+?)(?:\s+(?:from|for|at|by|before|on)\b|$)/i);
-
-  if (fromMatch) originCandidates = fuzzyMatchStops(fromMatch[1].trim(), allStopNames);
-  if (toMatch && !isAirport) destCandidates = fuzzyMatchStops(toMatch[1].trim(), allStopNames);
-  if (isAirport) destCandidates = allStopNames.filter(s => s.toLowerCase().includes('airport'));
-
+  
+  if (fromMatch) {
+    const fromStop = fromMatch[1].trim().toLowerCase();
+    if (fromStop.includes('airport')) {
+      originCandidates = allStopNames.filter(s => s.toLowerCase().includes('airport'));
+    } else {
+      originCandidates = fuzzyMatchStops(fromMatch[1].trim(), allStopNames);
+    }
+  }
+  
+  if (toMatch) {
+    const toStop = toMatch[1].trim().toLowerCase();
+    if (toStop.includes('airport')) {
+      destCandidates = allStopNames.filter(s => s.toLowerCase().includes('airport'));
+      isAirportDestination = true;
+    } else if (!isAirport) {
+      destCandidates = fuzzyMatchStops(toMatch[1].trim(), allStopNames);
+    }
+  }
+  
   if (!originCandidates.length || !destCandidates.length) {
     const prefixless = text.match(/^([A-Za-z0-9''\s]+?)\s+to\s+(?:the\s+)?([A-Za-z0-9''\s]+?)(?:\s+(?:for|at|by|before|on)\b|\s+\d|$)/i);
     if (prefixless) {
-      const left = fuzzyMatchStops(prefixless[1].trim(), allStopNames);
-      const right = isAirport
-        ? allStopNames.filter(s => s.toLowerCase().includes('airport'))
-        : fuzzyMatchStops(prefixless[2].trim(), allStopNames);
-      if (!originCandidates.length && left.length) originCandidates = left;
-      if (!destCandidates.length && right.length) destCandidates = right;
+      const left = prefixless[1].trim().toLowerCase();
+      const right = prefixless[2].trim().toLowerCase();
+      
+      if (left.includes('airport')) {
+        originCandidates = allStopNames.filter(s => s.toLowerCase().includes('airport'));
+      } else {
+        const leftMatches = fuzzyMatchStops(prefixless[1].trim(), allStopNames);
+        if (!originCandidates.length && leftMatches.length) originCandidates = leftMatches;
+      }
+      
+      if (right.includes('airport')) {
+        destCandidates = allStopNames.filter(s => s.toLowerCase().includes('airport'));
+        isAirportDestination = true;
+      } else if (!isAirport || airportIndex === -1 || airportIndex > text.toLowerCase().indexOf('to')) {
+        const rightMatches = fuzzyMatchStops(prefixless[2].trim(), allStopNames);
+        if (!destCandidates.length && rightMatches.length) destCandidates = rightMatches;
+      }
     }
     
-    if (isAirport && !originCandidates.length) {
+    if (isAirport && !originCandidates.length && !destCandidates.length) {
       const flightPattern = text.match(/^([A-Za-z0-9''\s]+?)(?:\s+(?:flight|fly|at|for)\b|\s+\d)/i);
       if (flightPattern) {
         const origin = fuzzyMatchStops(flightPattern[1].trim(), allStopNames);
-        if (origin.length) originCandidates = origin;
+        if (origin.length) {
+          originCandidates = origin;
+          destCandidates = allStopNames.filter(s => s.toLowerCase().includes('airport'));
+          isAirportDestination = true;
+        }
       }
     }
   }
-
-  return { origin: originCandidates[0] || null, destination: destCandidates[0] || null, originCandidates, destCandidates };
+  
+  return { 
+    origin: originCandidates[0] || null, 
+    destination: destCandidates[0] || null, 
+    originCandidates, 
+    destCandidates,
+    isAirportDestination 
+  };
 }

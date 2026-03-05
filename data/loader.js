@@ -53,14 +53,30 @@ function buildIndex() {
   allStopNames = [...stopGroups.keys()].sort();
 }
 
-export function isTripActiveToday(trip) {
+export function isTripActiveOnDay(trip, dayName = null) {
+  // If no specific day provided, use today
+  if (!dayName) {
+    const today = new Date();
+    dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][today.getDay()];
+  }
+  
+  // For specific days, we can't check exact dates without knowing which week's Sunday/Monday
+  // So we just check if the service runs on that day of the week
+  // and assume the timetable is currently valid
   const today = new Date();
-  const dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][today.getDay()];
   const dateStr = today.toISOString().slice(0,10);
+  
   if (trip.excludedDates.includes(dateStr)) return false;
   if (trip.additionalDates.includes(dateStr)) return true;
+  
   const from = new Date(trip.validFrom), to = new Date(trip.validTo);
   today.setHours(0,0,0,0);
   if (today < from || today > to) return false;
+  
   return trip.serviceDays[dayName] === true;
+}
+
+// Keep backward compatibility
+export function isTripActiveToday(trip) {
+  return isTripActiveOnDay(trip, null);
 }

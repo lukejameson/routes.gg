@@ -57,34 +57,46 @@ export function renderJourney(j, idx) {
     </div>`;
 }
 
-export function renderHeader(intent, origin, destination, threshold, timeMins) {
+export function renderHeader(intent, origin, destination, threshold, timeMins, isAirportDestination = false, dayName = null) {
   let html = '';
-  if (intent === 'flight') {
+  const isDepartingFromAirport = origin && origin.toLowerCase().includes('airport');
+  
+  // Format day name for display
+  const dayDisplay = dayName ? ` on ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}` : '';
+  
+  if (intent === 'flight' && isAirportDestination) {
     html += `
       <div class="banner">
-        <span>Flight at ${minsToTime(timeMins)} — arrive at airport by ${minsToTime(threshold)}</span>
+        <span>Flight at ${minsToTime(timeMins)}${dayDisplay} — arrive at airport by ${minsToTime(threshold)}</span>
+      </div>`;
+  } else if (isDepartingFromAirport) {
+    html += `
+      <div class="banner">
+        <span>Departing from airport at ${minsToTime(threshold)}${dayDisplay} · to ${destination}</span>
       </div>`;
   } else if (intent === 'arrive') {
     html += `
       <div class="banner arrive">
-        <span>Arrive by ${minsToTime(threshold)} · ${origin} to ${destination}</span>
+        <span>Arrive by ${minsToTime(threshold)}${dayDisplay} · ${origin} to ${destination}</span>
       </div>`;
   } else if (intent === 'first') {
     html += `
       <div class="banner first">
-        <span>First buses of the day · ${origin} to ${destination}</span>
+        <span>First buses${dayDisplay} · ${origin} to ${destination}</span>
       </div>`;
   } else if (intent === 'last') {
     html += `
       <div class="banner last">
-        <span>Last buses of the day · ${origin} to ${destination}</span>
+        <span>Last buses${dayDisplay} · ${origin} to ${destination}</span>
       </div>`;
   } else {
     html += `
       <div class="banner">
-        <span>Leaving after ${minsToTime(threshold)} · ${origin} to ${destination}</span>
+        <span>Leaving after ${minsToTime(threshold)}${dayDisplay} · ${origin} to ${destination}</span>
       </div>`;
   }
+  return html;
+}
   return html;
 }
 

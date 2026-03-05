@@ -1,6 +1,42 @@
 import { getStopVariants } from '../utils/stops.js';
 import { allStopNames } from '../data/loader.js';
 
+const DAY_MAP = {
+  'sunday': 0, 'sun': 0,
+  'monday': 1, 'mon': 1,
+  'tuesday': 2, 'tue': 2, 'tues': 2,
+  'wednesday': 3, 'wed': 3,
+  'thursday': 4, 'thu': 4, 'thurs': 4,
+  'friday': 5, 'fri': 5,
+  'saturday': 6, 'sat': 6,
+  'tomorrow': -1,
+  'today': -2
+};
+
+export function parseDay(text) {
+  const lower = text.toLowerCase();
+  
+  // Check for specific days
+  for (const [dayName, dayIndex] of Object.entries(DAY_MAP)) {
+    if (lower.includes(dayName)) {
+      if (dayIndex === -1) {
+        // tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][tomorrow.getDay()];
+      }
+      if (dayIndex === -2) {
+        // today
+        const today = new Date();
+        return ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][today.getDay()];
+      }
+      return dayName;
+    }
+  }
+  
+  return null;
+}
+
 export function parseTime(text) {
   const lower = text.toLowerCase();
   
@@ -31,9 +67,11 @@ export function parseTime(text) {
   return null;
 }
 
-export function detectIntent(text) {
+export function detectIntent(text, isAirportDestination = false) {
   const lower = text.toLowerCase();
-  if (/\b(flight|fly|plane|airport)\b/i.test(text)) return 'flight';
+  if (isAirportDestination && /\b(flight|fly|plane|airport)\b/i.test(text)) {
+    return 'flight';
+  }
   if (/\b(for|by)\s+\d/.test(lower)) return 'arrive';
   if (/\bfirst\b/.test(lower)) return 'first';
   if (/\blast\b/.test(lower)) return 'last';

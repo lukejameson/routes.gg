@@ -1,9 +1,9 @@
-import { allTrips, stopIndex, isTripActiveToday } from '../data/loader.js';
+import { allTrips, stopIndex, isTripActiveOnDay } from '../data/loader.js';
 import { timeToMins } from '../utils/time.js';
 
 const MIN_CHANGE = 5;
 
-export function searchDirect(originSet, destSet, threshold, intent) {
+export function searchDirect(originSet, destSet, threshold, intent, dayName = null) {
   const results = [];
 
   for (const trip of allTrips) {
@@ -20,7 +20,7 @@ export function searchDirect(originSet, destSet, threshold, intent) {
 
     if ((intent === 'flight' || intent === 'arrive') && arr > threshold) continue;
     if (intent === 'general' && dep < threshold) continue;
-    if (!isTripActiveToday(trip)) continue;
+    if (!isTripActiveOnDay(trip, dayName)) continue;
 
     results.push({
       type: 'direct',
@@ -42,7 +42,7 @@ export function searchDirect(originSet, destSet, threshold, intent) {
   return results;
 }
 
-export function searchConnecting(originSet, destSet, threshold, intent) {
+export function searchConnecting(originSet, destSet, threshold, intent, dayName = null) {
   const results = [];
   for (const trip1 of allTrips) {
     const stops1 = trip1.stopTimes;
@@ -51,7 +51,7 @@ export function searchConnecting(originSet, destSet, threshold, intent) {
     const dep1 = timeToMins(stops1[oi].departure);
     if (intent === 'general' && dep1 < threshold) continue;
     if (intent === 'last' && dep1 > threshold) continue;
-    if (!isTripActiveToday(trip1)) continue;
+    if (!isTripActiveOnDay(trip1, dayName)) continue;
 
     for (let ii = stops1.length - 1; ii > oi; ii--) {
       const iStop = stops1[ii].stopName;
@@ -62,7 +62,7 @@ export function searchConnecting(originSet, destSet, threshold, intent) {
       let found = false;
       for (const t2i of leg2idxs) {
         const trip2 = allTrips[t2i];
-        if (trip2 === trip1 || !isTripActiveToday(trip2)) continue;
+        if (trip2 === trip1 || !isTripActiveOnDay(trip2, dayName)) continue;
 
         const stops2 = trip2.stopTimes;
         const xi = stops2.findIndex(s => s.stopName === iStop);
@@ -113,7 +113,7 @@ export function searchConnecting(originSet, destSet, threshold, intent) {
   return results;
 }
 
-export function searchMultiConnecting(originSet, destSet, threshold, intent) {
+export function searchMultiConnecting(originSet, destSet, threshold, intent, dayName = null) {
   const results = [];
   const MAX_RESULTS = 3;
 
@@ -123,7 +123,7 @@ export function searchMultiConnecting(originSet, destSet, threshold, intent) {
     if (oi === -1) continue;
     const dep1 = timeToMins(stops1[oi].departure);
     if (intent === 'general' && dep1 < threshold) continue;
-    if (!isTripActiveToday(trip1)) continue;
+    if (!isTripActiveOnDay(trip1, dayName)) continue;
 
     for (let ii = stops1.length - 1; ii > oi; ii--) {
       const stopA = stops1[ii].stopName;
@@ -133,7 +133,7 @@ export function searchMultiConnecting(originSet, destSet, threshold, intent) {
 
       for (const t2i of tripsFromA) {
         const trip2 = allTrips[t2i];
-        if (trip2 === trip1 || !isTripActiveToday(trip2)) continue;
+        if (trip2 === trip1 || !isTripActiveOnDay(trip2, dayName)) continue;
 
         const stops2 = trip2.stopTimes;
         const idxA = stops2.findIndex(s => s.stopName === stopA);
@@ -152,7 +152,7 @@ export function searchMultiConnecting(originSet, destSet, threshold, intent) {
 
           for (const t3i of tripsFromB) {
             const trip3 = allTrips[t3i];
-            if (trip3 === trip2 || trip3 === trip1 || !isTripActiveToday(trip3)) continue;
+            if (trip3 === trip2 || trip3 === trip1 || !isTripActiveOnDay(trip3, dayName)) continue;
 
             const stops3 = trip3.stopTimes;
             const idxB = stops3.findIndex(s => s.stopName === stopB);
@@ -224,13 +224,13 @@ function dedupe(results) {
   });
 }
 
-export function search(originCandidates, destCandidates, threshold, intent) {
+export function search(originCandidates, destCandidates, threshold, intent, dayName = null) {
   const originSet = new Set(originCandidates);
   const destSet = new Set(destCandidates);
   
   const searchThreshold = (intent === 'first') ? 0 : threshold;
   
-  const direct = searchDirect(originSet, destSet, searchThreshold, intent);
+  const direct = searchDirect(originSet, destSet, searchThreshold, intent, dayName);
   
   let sortFn;
   if (intent === 'flight') {
@@ -246,19 +246,19 @@ export function search(originCandidates, destCandidates, threshold, intent) {
   if (direct.length >= 3) {
     return dedupe(direct.sort(sortFn)).slice(0, 5);
   }
-  const connecting = searchConnecting(originSet, destSet, searchThreshold, intent);
+  const connecting = searchConnecting(originSet, destSet, searchThreshold, intent, dayName);
   let combined = [...direct, ...connecting].sort(sortFn);
   combined = dedupe(combined);
   
   if (intent === 'arrive' && combined.length > 0) {
     const bestArrival = combined[0].totalArr;
     if (bestArrival > threshold + 30) {
-      const multi = searchMultiConnecting(originSet, destSet, searchThreshold, intent);
+      const multi = searchMultiConnecting(originSet, destSet, searchThreshold, intent, dayName);
       combined = [...combined, ...multi].sort(sortFn);
       combined = dedupe(combined);
     }
   } else if (combined.length === 0) {
-    const multi = searchMultiConnecting(originSet, destSet, searchThreshold, intent);
+    const multi = searchMultiConnecting(originSet, destSet, searchThreshold, intent, dayName);
     combined = multi.sort(sortFn);
   }
   

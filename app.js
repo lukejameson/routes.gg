@@ -1,5 +1,5 @@
 import { loadData, allStopNames } from './data/loader.js';
-import { parseTime, detectIntent, populateManualDropdowns } from './search/parse.js';
+import { parseTime, parseDay, detectIntent, populateManualDropdowns } from './search/parse.js';
 import { extractStops, getStopVariants } from './utils/stops.js';
 import { search } from './search/core.js';
 import { renderJourney, renderHeader, renderLoading, renderSearching, renderNoResults, renderError, renderSearchInputError, renderSelectFieldsError } from './ui/render.js';
@@ -38,26 +38,25 @@ window.setQuery = setQuery;
 export function runQuery() {
   const input = queryInput.value.trim();
   if (!input) return;
-
-  if (!timetableData) { 
+  if (!timetableData) {
     resultsEl.innerHTML = renderLoading();
     return;
   }
-
-  const intent = detectIntent(input);
+  
+  const { origin, destination, originCandidates, destCandidates, isAirportDestination } = extractStops(input);
+  const intent = detectIntent(input, isAirportDestination);
   const timeMins = parseTime(input);
-  const { origin, destination, originCandidates, destCandidates } = extractStops(input);
-
+  const dayName = parseDay(input);
+  
   let threshold = null;
   if (timeMins !== null) {
-    if (intent === 'flight') threshold = timeMins - FLIGHT_BUFFER;
+    if (intent === 'flight' && isAirportDestination) threshold = timeMins - FLIGHT_BUFFER;
     else threshold = timeMins;
   }
   
   const originVariants = origin ? getStopVariants(origin) : [];
   const destVariants = destination ? getStopVariants(destination) : [];
-  
-  executeSearch(origin, destination, originVariants, destVariants, threshold, intent, timeMins);
+  executeSearch(origin, destination, originVariants, destVariants, threshold, intent, timeMins, isAirportDestination, dayName);
 }
 
 window.runQuery = runQuery;
@@ -89,7 +88,7 @@ export function runManualQuery() {
   
   const originVariants = getStopVariants(origin);
   const destVariants = getStopVariants(dest);
-  executeSearch(origin, dest, originVariants, destVariants, threshold, intent, timeMins);
+  executeSearch(origin, dest, originVariants, destVariants, threshold, intent, timeMins, false, null);
 }
 
 window.runManualQuery = runManualQuery;
@@ -99,17 +98,17 @@ function timeToMins(t) {
   return h * 60 + m;
 }
 
-function executeSearch(origin, destination, originCandidates, destCandidates, threshold, intent, timeMins) {
+function executeSearch(origin, destination, originCandidates, destCandidates, threshold, intent, timeMins, isAirportDestination = false, dayName = null) {
   if (!origin || !destination || threshold === null) {
     resultsEl.innerHTML = renderSearchInputError();
     return;
   }
 
-  let html = renderHeader(intent, origin, destination, threshold, timeMins);
+  let html = renderHeader(intent, origin, destination, threshold, timeMins, isAirportDestination, dayName);
   resultsEl.innerHTML = html + renderSearching();
 
   setTimeout(() => {
-    const journeys = search(originCandidates, destCandidates, threshold, intent);
+    const journeys = search(originCandidates, destCandidates, threshold, intent, dayName);
 
     if (!journeys.length) {
       resultsEl.innerHTML = html + renderNoResults();
@@ -135,8 +134,8 @@ function init() {
     resultsEl.innerHTML = renderError(err.message);
   });
 
-  queryInput.addEventListener('keydown', e => { 
-    if (e.key === 'Enter') runQuery(); 
+  queryInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') runQuery();
   });
 }
 
