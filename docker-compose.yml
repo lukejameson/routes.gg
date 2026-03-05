@@ -8,7 +8,7 @@ services:
     environment:
       - NODE_ENV=production
     networks:
-      - docker_manga_network
+      - web
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.stopsgg.rule=Host(`${DOMAIN:-stops.gg}`)'
@@ -18,5 +18,5 @@ services:
       - 'traefik.http.services.stopsgg.loadbalancer.server.port=80'
 
 networks:
-  docker_manga_network:
+  web:
     external: true
