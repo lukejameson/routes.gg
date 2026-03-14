@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#ea580c">
+<title>stops.gg — Guernsey Bus Times</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23ea580c'/><text x='50' y='68' text-anchor='middle' fill='white' font-size='55' font-family='Arial'>S</text></svg>">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <h1>stops.gg</h1>
+    </div>
+    <div class="subtitle">Find your way around Guernsey</div>
+  </header>
+  <div class="search-box">
+    <div class="tabs">
+      <button class="tab active" data-tab="ask" onclick="switchTab('ask')">Quick Search</button>
+      <button class="tab" data-tab="pick" onclick="switchTab('pick')">Browse Stops</button>
+    </div>
+    <div class="tab-content active" id="tab-ask">
+      <div class="nl-row">
+        <input type="text" class="nl-input" id="query" placeholder="Try: Cobo to Bridge at 5pm" autocomplete="off">
+        <button class="go-btn" id="askBtn" onclick="runQuery()">Find Buses</button>
+      </div>
+      <div class="examples">
+        <span class="examples-label">Popular:</span>
+        <span class="chip" onclick="setQuery('Cobo to Bridge now')">Cobo to Bridge</span>
+        <span class="chip" onclick="setQuery('First bus from Town to Vazon')">Town to Vazon</span>
+        <span class="chip" onclick="setQuery('Last bus from Bridge to Town')">Bridge to Town</span>
+        <span class="chip" onclick="setQuery('Vazon to Airport flight 5pm')">To Airport</span>
+      </div>
+    </div>
+    <div class="tab-content" id="tab-pick">
+      <div class="manual-grid">
+        <div class="manual-row">
+          <div class="field">
+            <label>From</label>
+            <select id="manualOrigin"><option>Loading stops...</option></select>
+          </div>
+          <div class="field">
+            <label>To</label>
+            <select id="manualDest"><option>Loading stops...</option></select>
+          </div>
+        </div>
+        <div class="manual-row">
+          <div class="field">
+            <label>When</label>
+            <input type="time" id="manualTime" value="09:00">
+          </div>
+          <div class="field">
+            <label>Looking for</label>
+            <select id="manualType">
+              <option value="depart">Buses leaving after</option>
+              <option value="arrive">Buses arriving before</option>
+              <option value="flight">Flight connection (1hr buffer)</option>
+            </select>
+          </div>
+        </div>
+        <button class="go-btn" id="pickBtn" onclick="runManualQuery()">Find Buses</button>
+      </div>
+    </div>
+  </div>
+  <div class="results" id="results"></div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

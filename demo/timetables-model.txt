@@ -1,0 +1,39 @@
+timetables.json
+├── scrapedAt: string (ISO datetime)
+├── agency: string
+├── totalRoutes: number
+└── routes: Route[]
+
+Route
+├── routeId: string
+├── lineName: string
+├── description: string
+├── color: string (hex)
+├── scrapedAt: string (ISO datetime)
+└── calendars: Calendar[]
+
+Calendar
+├── direction: "Inbound" | "Outbound"
+├── validFrom: string (YYYY-MM-DD)
+├── validTo: string (YYYY-MM-DD)
+├── serviceDays: { monday–sunday: boolean }
+├── additionalDates: string[]
+├── excludedDates: string[]
+├── stops: Stop[]
+└── trips: Trip[]
+
+Stop
+├── id: string
+├── name: string
+├── lat: number
+└── lng: number
+
+Trip
+├── headsign: string
+└── stopTimes: StopTime[]
+
+StopTime
+├── stopId: string
+├── stopName: string
+├── arrival: string (HH:MM)
+└── departure: string (HH:MM)

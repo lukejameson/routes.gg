@@ -1,23 +1,21 @@
 {
-  "name": "bus",
+  "name": "stopsgg-tracker",
   "version": "1.0.0",
-  "description": "",
-  "main": "parseTimetable.js",
-  "scripts": {
-    "dev": "vite",
-    "dev:scrape": "node scraper.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "module",
+  "scripts": {
+    "scrape":  "tsx src/scraper/index.ts",
+    "import":  "tsx src/tracker/importer.ts",
+    "tracker": "tsx src/tracker/poller.ts",
+    "start":   "bash scripts/run-tracker.sh"
+  },
   "dependencies": {
-    "better-sqlite3": "^12.6.2",
-    "pdf-parse": "^2.4.5",
-    "puppeteer-core": "^24.38.0"
+    "pg": "^8.13.3",
+    "dotenv": "^16.4.7",
+    "tsx": "^4.19.2"
   },
   "devDependencies": {
-    "vite": "^6.2.0"
+    "@types/pg": "^8.11.10",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
   }
 }

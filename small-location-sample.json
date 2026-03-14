@@ -1,0 +1,21 @@
+{
+  "occupancy": {
+    "currentOccupancy": 0.16129032258064516
+  },
+  "vehicleId": "08dd70df-674f-4e6b-85d6-63a85efb5dda",
+  "vehicleRef": "64189",
+  "routeName": "LVHS4A",
+  "direction": "inbound",
+  "scheduledTripStartTime": "2026-03-11T07:40:00+00:00",
+  "agencyId": "TCKTLSS_OP_GUERNSEY",
+  "vehicleDutyId": "c9e8a591-5b46-4c28-b6be-1dd534224897",
+  "position": {
+    "bearing": 246,
+    "latitude": 49.432511,
+    "longitude": -2.553161
+  },
+  "nextStopId": "890000532",
+  "reported": "2026-03-11T07:51:11+00:00",
+  "received": "2026-03-11T07:53:01.837874+00:00",
+  "_links": []
+}

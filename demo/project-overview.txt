@@ -1,0 +1,18 @@
+stops.gg — Guernsey Bus Journey Planner
+
+A fully client-side, static web app for planning bus journeys on the island of Guernsey. It requires no server runtime — production is just Nginx serving static files behind Traefik with auto-TLS.
+
+Core flow:
+- A Node.js scraper (scraper.js) fetches live timetable data from the Ticketless UrbanThings API and serialises it to a single timetables.json file.
+- On page load, the browser fetches timetables.json and builds in-memory indexes of all trips and stops.
+- Users enter a natural-language query (e.g. "Cobo to Bridge at 5pm") or use dropdown selectors.
+- The app parses the query for origin/destination (fuzzy matched), time, day, and intent (flight, first/last bus, arrive-by, etc.).
+- A cascading search engine finds direct journeys first, then single-change connections, then up to 2-change multi-leg routes.
+- Results are rendered as journey cards showing route numbers, stop names, times, duration, and day-of-week grids.
+
+Key features:
+- Natural language parsing with colloquial time expressions (now, tomorrow, 5pm, morning)
+- Flight mode: auto-subtracts a 60-min buffer when travelling to the airport
+- Day-aware scheduling respecting service calendars, valid date ranges, and exception dates
+- Stop name grouping (directional variants merged under canonical names)
+- Vanilla JS ES modules + Vite (dev only) — zero runtime framework dependencies

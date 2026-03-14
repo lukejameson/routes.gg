@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stops.gg Transit Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">Stops.gg Dashboard</div>
+    <div class="nav-links">
+      <a href="#" data-view="overview" class="active">Overview</a>
+      <a href="#" data-view="congestion">Congestion</a>
+      <a href="#" data-view="fleet">Fleet</a>
+      <a href="#" data-view="punctuality">Punctuality</a>
+      <a href="#" data-view="occupancy">Occupancy</a>
+      <a href="#" data-view="stops">Stops</a>
+      <a href="#" data-view="issues">Issues</a>
+    </div>
+    <div class="nav-status">
+      <span id="active-filters" class="filter-indicator"></span>
+      <span id="last-update">Never</span>
+      <button id="refresh-btn">Refresh</button>
+    </div>
+  </nav>
+
+  <!-- Filter Panel -->
+  <div class="filter-panel" id="filter-panel">
+    <div class="filter-section">
+      <label>Quick Select:</label>
+      <div class="preset-buttons">
+        <button class="preset-btn" data-preset="today">Today</button>
+        <button class="preset-btn" data-preset="yesterday">Yesterday</button>
+        <button class="preset-btn" data-preset="last24h">Last 24h</button>
+        <button class="preset-btn" data-preset="last7d">Last 7 Days</button>
+        <button class="preset-btn" data-preset="thisWeek">This Week</button>
+        <button class="preset-btn" data-preset="lastWeek">Last Week</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>From Date:</label>
+        <input type="datetime-local" id="filter-from">
+      </div>
+      <div class="filter-group">
+        <label>To Date:</label>
+        <input type="datetime-local" id="filter-to">
+      </div>
+      <div class="filter-group">
+        <label>From Time:</label>
+        <input type="time" id="filter-time-from">
+      </div>
+      <div class="filter-group">
+        <label>To Time:</label>
+        <input type="time" id="filter-time-to">
+      </div>
+    </div>
+    <div class="filter-section">
+      <label>Days of Week:</label>
+      <div class="day-selector">
+        <label><input type="checkbox" value="1" class="day-checkbox"> Mon</label>
+        <label><input type="checkbox" value="2" class="day-checkbox"> Tue</label>
+        <label><input type="checkbox" value="3" class="day-checkbox"> Wed</label>
+        <label><input type="checkbox" value="4" class="day-checkbox"> Thu</label>
+        <label><input type="checkbox" value="5" class="day-checkbox"> Fri</label>
+        <label><input type="checkbox" value="6" class="day-checkbox"> Sat</label>
+        <label><input type="checkbox" value="0" class="day-checkbox"> Sun</label>
+      </div>
+    </div>
+    <div class="filter-actions">
+      <button id="apply-filters" class="btn-primary">Apply Filters</button>
+      <button id="reset-filters" class="btn-secondary">Reset</button>
+    </div>
+  </div>
+
+  <main id="app">
+    <!-- Overview View -->
+    <section id="overview-view" class="view active">
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <h3>Active Vehicles</h3>
+          <div class="kpi-value" id="kpi-vehicles">-</div>
+          <small>Currently tracked</small>
+        </div>
+        <div class="kpi-card">
+          <h3>Avg Delay</h3>
+          <div class="kpi-value" id="kpi-delay">-</div>
+          <small>vs scheduled</small>
+        </div>
+        <div class="kpi-card">
+          <h3>On-Time %</h3>
+          <div class="kpi-value" id="kpi-ontime">-</div>
+          <small>within ±2 min</small>
+        </div>
+        <div class="kpi-card">
+          <h3>Avg Occupancy</h3>
+          <div class="kpi-value" id="kpi-quality">-</div>
+          <small>fleet average</small>
+        </div>
+        <div class="kpi-card">
+          <h3>Bus Bunching</h3>
+          <div class="kpi-value" id="kpi-bunching">-</div>
+          <small>< 2 min apart</small>
+        </div>
+        <div class="kpi-card">
+          <h3>Data Coverage</h3>
+          <div class="kpi-value" id="kpi-coverage">-</div>
+          <small>with occupancy</small>
+        </div>
+      </div>
+      
+      <div class="chart-grid">
+        <div class="chart-container wide">
+          <h3>Live Fleet Map</h3>
+          <div id="overview-map" style="height: 400px;"></div>
+          <small style="color: #64748b;">Blue: Regular routes | Yellow: School buses</small>
+        </div>
+      </div>
+      
+      <div class="chart-grid">
+        <div class="chart-container">
+          <h3>Punctuality by Route</h3>
+          <canvas id="punctuality-chart"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Occupancy Distribution</h3>
+          <canvas id="occupancy-chart"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Speed Distribution</h3>
+          <canvas id="speed-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Congestion View -->
+    <section id="congestion-view" class="view">
+      <div class="controls">
+        <div class="control-group">
+          <label>Score Threshold:</label>
+          <input type="range" id="congestion-threshold" min="0" max="1" step="0.1" value="0.3">
+          <span id="threshold-value">0.3</span>
+        </div>
+        <div class="control-group">
+          <label>Window (minutes):</label>
+          <input type="number" id="congestion-window" min="10" max="240" step="10" value="30">
+        </div>
+        <div class="control-group">
+          <label>Baseline (weeks):</label>
+          <input type="number" id="congestion-baseline" min="1" max="12" step="1" value="4">
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="control-group">
+          <label>From Hour (0-23):</label>
+          <input type="number" id="congestion-hour-from" min="0" max="23" step="1" value="">
+        </div>
+        <div class="control-group">
+          <label>To Hour (0-23):</label>
+          <input type="number" id="congestion-hour-to" min="0" max="23" step="1" value="">
+        </div>
+      </div>
+
+      <div style="padding: 0 2rem; margin-bottom: 1rem;">
+        <label style="color: #94a3b8; font-size: 0.875rem; font-weight: 500; display: block; margin-bottom: 0.5rem;">Days of Week:</label>
+        <div class="day-selector">
+          <label><input type="checkbox" value="1" class="congestion-day-checkbox"> Mon</label>
+          <label><input type="checkbox" value="2" class="congestion-day-checkbox"> Tue</label>
+          <label><input type="checkbox" value="3" class="congestion-day-checkbox"> Wed</label>
+          <label><input type="checkbox" value="4" class="congestion-day-checkbox"> Thu</label>
+          <label><input type="checkbox" value="5" class="congestion-day-checkbox"> Fri</label>
+          <label><input type="checkbox" value="6" class="congestion-day-checkbox"> Sat</label>
+          <label><input type="checkbox" value="0" class="congestion-day-checkbox"> Sun</label>
+        </div>
+      </div>
+
+      <div style="padding: 0 2rem; margin-bottom: 1rem;">
+        <button id="congestion-refresh-btn" class="btn-primary">Refresh Congestion</button>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-container wide">
+          <h3>Traffic Congestion Hotspots</h3>
+          <div id="congestion-map" style="height: 500px;"></div>
+          <small style="color: #64748b;">Red: Severe (>70%) | Orange: Moderate (40-70%) | Yellow: Light (20-40%) | Size: Number of vehicles</small>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-container wide">
+          <h3>Congestion Summary</h3>
+          <div class="table-container">
+            <table id="congestion-table">
+              <thead>
+                <tr>
+                  <th>Location (Lat, Lng)</th>
+                  <th>Current Speed</th>
+                  <th>Baseline Speed</th>
+                  <th>Congestion Score</th>
+                  <th>Vehicles</th>
+                  <th>Routes</th>
+                  <th>Confidence</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="chart-container wide">
+          <h3>Statistics</h3>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <div class="stat-label">Total Hotspots</div>
+              <div class="stat-value" id="congestion-total">-</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Average Score</div>
+              <div class="stat-value" id="congestion-avg-score">-</div>
+            </div>
+            <div class="stat-label-small">Last Updated:</div>
+            <div class="stat-value" id="congestion-timestamp">-</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Fleet View -->
+    <section id="fleet-view" class="view">
+      <div class="controls">
+        <input type="text" id="fleet-filter" placeholder="Filter by vehicle or route...">
+        <select id="fleet-route-filter">
+          <option value="">All Routes</option>
+        </select>
+      </div>
+      <div class="table-container">
+        <table id="fleet-table">
+          <thead>
+            <tr>
+              <th>Vehicle</th>
+              <th>Route</th>
+              <th>Direction</th>
+              <th>Destination</th>
+              <th>Departure</th>
+              <th>At Stop</th>
+              <th>Next Stop</th>
+              <th>Progress</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Punctuality View -->
+    <section id="punctuality-view" class="view">
+      <div class="chart-grid">
+        <div class="chart-container wide">
+          <h3>Delay by Route (minutes) - Click bars for details</h3>
+          <canvas id="route-delay-chart"></canvas>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-container">
+          <h3>Delay by Hour of Day</h3>
+          <canvas id="hour-delay-chart"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Live Variance</h3>
+          <div class="table-container">
+            <table id="variance-table">
+              <thead>
+                <tr><th>Route</th><th>Vehicle</th><th>Variance</th><th>Next Stop</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Occupancy View -->
+    <section id="occupancy-view" class="view">
+      <div class="chart-grid">
+        <div class="chart-container">
+          <h3>Average Occupancy by Route</h3>
+          <canvas id="occupancy-route-chart"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Occupancy Distribution</h3>
+          <canvas id="occupancy-dist-chart"></canvas>
+        </div>
+      </div>
+      <div class="table-container">
+        <table id="occupancy-table">
+          <thead>
+            <tr>
+              <th>Route</th>
+              <th>Samples</th>
+              <th>Avg Occupancy %</th>
+              <th>Peak Occupancy %</th>
+              <th>Low</th>
+              <th>Medium</th>
+              <th>High</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Stops View -->
+    <section id="stops-view" class="view">
+      <div class="controls">
+        <input type="text" id="stop-filter" placeholder="Filter stops...">
+      </div>
+      <div class="chart-grid">
+        <div class="chart-container">
+          <h3>Most Popular Stops</h3>
+          <div class="table-container">
+            <table id="popular-stops-table">
+              <thead>
+                <tr><th>Stop</th><th>Observations</th><th>Vehicles</th><th>Routes</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="chart-container">
+          <h3>Dwell Times</h3>
+          <div class="table-container">
+            <table id="dwell-table">
+              <thead>
+                <tr><th>Stop</th><th>Route</th><th>Avg Dwell (s)</th><th>Max Dwell (s)</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Issues View -->
+    <section id="issues-view" class="view">
+      <div class="chart-grid">
+        <div class="chart-container">
+          <h3>Bus Bunching Alerts</h3>
+          <div class="table-container">
+            <table id="bunching-table">
+              <thead>
+                <tr><th>Route</th><th>Vehicle</th><th>Behind Vehicle</th><th>Minutes Behind</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="chart-container">
+          <h3>Geographic Delay Hotspots</h3>
+          <div id="delay-map" style="height: 300px;"></div>
+        </div>
+      </div>
+      <div class="chart-container wide">
+        <h3>Route Hoppers (Vehicles on Multiple Routes)</h3>
+        <div class="table-container">
+          <table id="hoppers-table">
+            <thead>
+              <tr><th>Vehicle</th><th>Routes</th><th>Route Count</th><th>Hours Active</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Vehicle Detail Modal -->
+  <div id="vehicle-modal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2 id="modal-title">Vehicle Details</h2>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

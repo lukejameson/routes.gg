@@ -1,22 +1,25 @@
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: stops_gg_app
+  tracker:
+    build: .
+    command: npm run tracker
+    env_file: config/.env
     restart: unless-stopped
-    environment:
-      - NODE_ENV=production
-    networks:
-      - web
-    labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.stopsgg.rule=Host(`${DOMAIN:-stops.gg}`)'
-      - 'traefik.http.routers.stopsgg.entrypoints=websecure'
-      - 'traefik.http.routers.stopsgg.tls=true'
-      - 'traefik.http.routers.stopsgg.tls.certresolver=letsencrypt'
-      - 'traefik.http.services.stopsgg.loadbalancer.server.port=80'
-
-networks:
-  web:
-    external: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  scraper:
+    build: .
+    command: npm run scrape
+    env_file: config/.env
+    profiles: [scrape]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "5173:5173"
+    env_file:
+      - config/.env
+      - dashboard/.env
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
